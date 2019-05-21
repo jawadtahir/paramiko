@@ -451,6 +451,63 @@ class Transport(threading.Thread, ClosingContextManager):
         self.server_accepts = []
         self.server_accept_cv = threading.Condition(self.lock)
         self.subsystem_table = {}
+        
+        # time measuring
+        self._t0 = 0
+        self._t1 = 0
+        self._t2 = 0
+        self._t3 = 0
+        self._t4 = 0
+        self._t5 = 0
+        
+    @property
+    def t0(self):
+        return self._t0
+    
+    @t0.setter
+    def t0(self, value):
+        self._t0 = value
+        
+    @property
+    def t1(self):
+        return self._t1
+    
+    @t1.setter
+    def t1(self, value):
+        self._t1 = value
+        
+    @property
+    def t2(self):
+        return self._t2
+    
+    @t2.setter
+    def t2(self, value):
+        self._t2 = value
+        
+    @property
+    def t3(self):
+        return self._t3
+    
+    @t3.setter
+    def t3(self, value):
+        self._t3 = value
+        
+    @property
+    def t4(self):
+        return self._t4
+    
+    @t4.setter
+    def t4(self, value):
+        self._t4 = value
+        
+    @property
+    def t5(self):
+        return self._t5
+    
+    @t5.setter
+    def t5(self, value):
+        self._t5 = value
+        
 
     def __repr__(self):
         """
@@ -1958,7 +2015,9 @@ class Transport(threading.Thread, ClosingContextManager):
             self._log(DEBUG, "starting thread (client mode): {}".format(tid))
         try:
             try:
+                self.t0 = time.clock()
                 self.packetizer.write_all(b(self.local_version + "\r\n"))
+                self.t1 = time.clock()
                 self._log(
                     DEBUG,
                     "Local version/idstring: {}".format(self.local_version),
@@ -1971,8 +2030,10 @@ class Transport(threading.Thread, ClosingContextManager):
                 # shell.
                 # Make sure we can specify a timeout for the initial handshake.
                 # Re-use the banner timeout for now.
+                
                 self.packetizer.start_handshake(self.handshake_timeout)
                 self._send_kex_init()
+                
                 self._expect_packet(MSG_KEXINIT)
 
                 while self.active:
@@ -2000,6 +2061,7 @@ class Transport(threading.Thread, ClosingContextManager):
                         self._expected_packet = tuple()
                         if (ptype >= 30) and (ptype <= 41):
                             self.kex_engine.parse_next(ptype, m)
+                            self.t5 = time.clock()
                             continue
 
                     if ptype in self._handler_table:
@@ -2123,7 +2185,9 @@ class Transport(threading.Thread, ClosingContextManager):
             # remote side wants to renegotiate
             self._send_kex_init()
         self._parse_kex_init(m)
+        self.t3 = time.clock()
         self.kex_engine.start_kex()
+        self.t4 = time.clock()
 
     def _check_banner(self):
         # this is slow, but we only have to do it once
@@ -2145,6 +2209,8 @@ class Transport(threading.Thread, ClosingContextManager):
             if buf[:4] == "SSH-":
                 break
             self._log(DEBUG, "Banner: " + buf)
+            
+        self.t2 = time.clock()
         if buf[:4] != "SSH-":
             raise SSHException('Indecipherable protocol version "' + buf + '"')
         # save this server version string for later
